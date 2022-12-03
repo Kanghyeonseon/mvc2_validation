@@ -7,6 +7,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.util.StringUtils;
+import org.springframework.validation.BindingResult;
+import org.springframework.validation.FieldError;
+import org.springframework.validation.ObjectError;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
@@ -44,33 +47,29 @@ public class ValidationItemControllerV2 {
 
 
     @PostMapping("/add")
-    public String addItem(@ModelAttribute Item item, RedirectAttributes redirectAttributes, Model model) {
-        // 검증 오류 결과를 보관하는 맵
-        Map<String, String> errors = new HashMap<>();
-
-        // 검증 로직 : 검증 후 검증 오류 결과를 맵에 담는다.
+    public String addItem(@ModelAttribute Item item, BindingResult bindingResult, RedirectAttributes redirectAttributes, Model model) {
+        // 검증 로직
         if (!StringUtils.hasText(item.getItemName())) {
-            errors.put("itemName", "상품 이름은 필수 입력사항입니다.");
+            bindingResult.addError(new FieldError("item", "itemName", "상품 이름은 필수로 입력해야합니다."));
         }
         if (item.getPrice() == null || item.getPrice() < 1000 || item.getPrice() > 1000000) {
-            errors.put("price", "가격은 1,000원 이상 1,000,000원 이하여야 합니다.");
+            bindingResult.addError(new FieldError("item", "price", "가격은 1,000원 이상 1,000,000원 이하여야 합니다."));
         }
         if (item.getQuantity() == null || item.getQuantity() >= 9999) {
-            errors.put("quantity", "수량은 최대 9,999개 까지 입니다.");
+            bindingResult.addError(new FieldError("item", "quantity", "수량은 최대 9,999개 까지 입니다."));
         }
 
         // 특정 필드가 아닌 복합 룰 검증
         if (item.getPrice() != null && item.getQuantity() != null) {
             int cost = item.getPrice() * item.getQuantity();
             if (cost < 10000) {
-                errors.put("globalError", "금액은 10,000원 이상이여야 합니다. 현재 값 =" + cost);
+                bindingResult.addError(new ObjectError("item", "금액은 10,000원 이상이여야 합니다. 현재 값 =" + cost));
             }
         }
 
         // 검증 실패 시 모델에 정보를 담아서 입력 폼으로 이동
-        if (!errors.isEmpty()) {
-            log.info("errors = {}", errors);
-            model.addAttribute("errors", errors);
+        if (bindingResult.hasErrors()) {
+            log.info("errors = {}", bindingResult);
             return "validation/v2/addForm";
         }
 
